@@ -4,30 +4,53 @@
 #include <limits.h>
 #include <time.h>
 
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define FILE_NAME "numbers.txt"
+#define INITIAL_CAPACITY 5000000
 
 void read_numbers_from_file(const char *filename, int **array, int *size) {
     FILE *file = fopen(filename, "r");
     if (!file) {
-        perror("Error opening file for reading");
+        perror("Error opening file");
         exit(EXIT_FAILURE);
     }
 
-    fscanf(file, "%d", size);
-
-    *array = malloc((*size) * sizeof(int));
+    int count = 0;
+    int capacity = INITIAL_CAPACITY; // Start with a capacity of 3,032,000
+    *array = malloc(capacity * sizeof(int));
     if (!*array) {
         perror("Memory allocation failed");
         fclose(file);
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < *size; i++) {
-        fscanf(file, "%d", &(*array)[i]);
+    // Read numbers from the file
+    while (fscanf(file, "%d", &(*array)[count]) == 1) {
+        count++;
+
+        // Expand the array only if capacity is exceeded
+        if (count >= capacity) {
+            capacity = (int)(capacity * 1.5); // Increase capacity by 50%
+            *array = realloc(*array, capacity * sizeof(int));
+            if (!*array) {
+                perror("Memory reallocation failed");
+                fclose(file);
+                exit(EXIT_FAILURE);
+            }
+        }
     }
 
     fclose(file);
+
+    if (count == 0) {
+        fprintf(stderr, "Error: No valid numbers found in the file.\n");
+        free(*array);
+        *array = NULL;
+        *size = 0;
+        exit(EXIT_FAILURE);
+    }
+
+    *size = count; // Update the size with the number of elements read
 }
 
 int main() {
@@ -35,12 +58,21 @@ int main() {
     int n = 0;
     read_numbers_from_file(FILE_NAME, &x, &n);
 
-
     int sum = 0;
-    int s[n];           // Prefix-sum array
-    int m[n];           // Prefix-minimum array
-    int s_m[n];         // Maximum sum array := s_m[j] = s[j] - m[j-1]
-    int indx[n];
+    int *s = malloc(n * sizeof(int));           // Prefix-sum array
+    int *m = malloc(n * sizeof(int));           // Prefix-minimum array
+    int *s_m = malloc(n * sizeof(int));         // Maximum sum array := s_m[j] = s[j] - m[j-1]
+    int *indx = malloc(n * sizeof(int));
+
+    if (!s || !m || !s_m || !indx) {
+        perror("Memory allocation failed for large arrays");
+        free(x);
+        free(s);
+        free(m);
+        free(s_m);
+        free(indx);
+        exit(EXIT_FAILURE);
+    }
 
     s[0] = x[0];        // Prefix maximum at the first position
     int r = x[0];
@@ -109,7 +141,7 @@ int main() {
     }
     printf("]");
 */
-    printf("\nwhere the MCS value is max(sm[j]) = %d, the indices are [%d, %d].\n", MCS, start_index, end_index);
+    printf("\nwhere the MCS value is max(s_m[j]) = %d, the indices are [%d, %d].\n", MCS, start_index, end_index);
 
     /*
     printf("\nIndex\tPrefix-Sum (s)\tPrefix-Min (m)\ts_m\tindx\n");
@@ -142,5 +174,11 @@ int main() {
     printf("\n");
     printf("%d\tStart: %d - End: %d\n", MCS, start_index, end_index);
 */
+
+    free(x);
+    free(s);
+    free(m);
+    free(s_m);
+    free(indx);
     return 0;
 }

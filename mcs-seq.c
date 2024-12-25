@@ -1,11 +1,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h> // For INT_MIN
-#define MIN(a, b) ((a) < (b) ? (a) : (b)) // Macro for minimum
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define FILE_NAME "numbers.txt"
+
+void read_numbers_from_file(const char *filename, int **array, int *size) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Error opening file for reading");
+        exit(EXIT_FAILURE);
+    }
+
+    fscanf(file, "%d", size);
+
+    *array = malloc((*size) * sizeof(int));
+    if (!*array) {
+        perror("Memory allocation failed");
+        fclose(file);
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < *size; i++) {
+        fscanf(file, "%d", &(*array)[i]);
+    }
+
+    fclose(file);
+}
 
 int main() {
-    int x[] = {72, 8, -47, -100, 72};
-    int n = sizeof(x) / sizeof(x[0]);
+    int *x = NULL;
+    int n = 0;
+    read_numbers_from_file(FILE_NAME, &x, &n);
 
     int s[n], m[n], sm[n], indx[n]; // Arrays for input, prefix-sum, prefix-min, sm, and indices
 
@@ -15,7 +41,6 @@ int main() {
     sm[0] = s[0];       // sm[0] = s[0] since m[-1] doesn't exist
     indx[0] = 0;        // The prefix minimum at position 0 occurs at index 0
 
-    // Step 3: Compute s[], m[], sm[], and indx[] in a single for loop
     for (int i = 1; i < n; i++) {
         s[i] = s[i - 1] + x[i];        // Prefix-sum array
         m[i] = MIN(m[i - 1], s[i]);    // Prefix-minimum array
@@ -29,7 +54,6 @@ int main() {
         }
     }
 
-    // Step 4: Find MCS value and its indices
     int MCS = INT_MIN;   // Maximum sm[j]
     int end_index = 0;   // End index of the subarray
     for (int j = 0; j < n; j++) {
@@ -39,17 +63,10 @@ int main() {
         }
     }
 
-    // Start index is determined using indx[end_index]
     int start_index = indx[end_index] + 1;
 
-    // Step 5: Print the results
     printf("\nwhere the MCS value is max(sm[j]) = %d, the indices are [%d, %d].\n", MCS, start_index, end_index);
 
-    // Print s[], m[], sm[], and indx[] for clarity
-    printf("\nIndex\tPrefix-Sum (s)\tPrefix-Min (m)\tsm[j]\tindx\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d\t%d\t\t%d\t\t%d\t%d\n", i, s[i], m[i], sm[i], indx[i]);
-    }
     
     return 0;
 }

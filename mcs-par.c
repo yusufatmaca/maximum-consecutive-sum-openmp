@@ -4,18 +4,39 @@
 #include <limits.h>
 #include <time.h>
 
-#define NUM_COUNT 100   // Number of random numbers to generate
-#define MIN_VAL -250    // Minimum value for the random range
-#define MAX_VAL 250     // Maximum value for the random range
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define FILE_NAME "numbers.txt"
+
+void read_numbers_from_file(const char *filename, int **array, int *size) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Error opening file for reading");
+        exit(EXIT_FAILURE);
+    }
+
+    fscanf(file, "%d", size);
+
+    *array = malloc((*size) * sizeof(int));
+    if (!*array) {
+        perror("Memory allocation failed");
+        fclose(file);
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < *size; i++) {
+        fscanf(file, "%d", &(*array)[i]);
+    }
+
+    fclose(file);
+}
 
 int main() {
+    int *x = NULL;
+    int n = 0;
+    read_numbers_from_file(FILE_NAME, &x, &n);
 
-    int x[] = {40,-141,198,248,124,145,35,196,-40,-68,198,185,16,199,20,-32,209,161,-144,28,-211,-102,187,-123,110,226,94,96,42,120,162,-118,-209,235,-166,202,53,-176,-172,-192,72,-73,123,146,191,-90,-35,-187,-234,42,145,120,132,-209,37,-80,14,-86,-103,69,228,-143,-245,212,205,91,-154,-123,-102,166,92,-149,-57,91,114,-57,-87,-5,-70,49,-89,-246,-110,-209,-47,-216,-16,79,167,97,-66,-97,3,142,-129,-78,10,-149,-29,68,243,-165,22,143,124,-65,-94,72,-19,-21,160,-132,104,-99,-54,189,73,213,-26,-11,-153,-199,-2,-187,139,180,-86,-212,-122,88,-143,-37,-104,-74,20,170,213,167,73,-223,11,57,20,165,-14,-151,-47,-152,167,181,233,144,-164,189,-40,-212,36,-201,232,114,121,94,-16,-71,-126,137,-4,-138,-184,158,167,-146,-153,-21,207,-24,14,113,33,92,210,201,46,206,-172,155,250,239,117,-118,-91,-11,143,18,101,-246,211,-224,51,-19};
 
-    int n = sizeof(x) / sizeof(int);
     int sum = 0;
-
     int s[n];           // Prefix-sum array
     int m[n];           // Prefix-minimum array
     int s_m[n];         // Maximum sum array := s_m[j] = s[j] - m[j-1]
@@ -49,7 +70,7 @@ int main() {
 
     indx[0] = 0;
     int indx_val = 0;
-    #pragma omp parallel for reduction (inscan, +: indx_val)
+    #pragma omp parallel for reduction (inscan, max: indx_val)
     for (int i = 1; i < n; i++) {
         if (s[i] < m[i-1]) {
             indx_val = i;

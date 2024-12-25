@@ -1,1 +1,1 @@
-MCS Problem's solution using OpenMP
+# Maximum Consecutive Sum Problem's Solution using OpenMP

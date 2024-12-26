@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
-#include <limits.h>
+#include <limits.h> // For INT_MIN, to be used *MCS*
 #include <time.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define ARRAY_SIZE 100000000
+#define ARRAY_SIZE 200000000
 
 void generate_random_array(int *array, int size) {
 
@@ -26,6 +26,7 @@ void generate_random_array(int *array, int size) {
 }
 
 double solve_mcs(int *x, int n) {
+    // For such a large array, prefer "heap"
     int *s = malloc(n * sizeof(int));
     int *m = malloc(n * sizeof(int));
     int *s_m = malloc(n * sizeof(int));
@@ -36,11 +37,26 @@ double solve_mcs(int *x, int n) {
         exit(EXIT_FAILURE);
     }
 
-
+    /*
+     * ## Fork-Join parallelism strategy
+     * Calculate parallel *s*
+     * Synchronize
+     * Calculate parallel *m*
+     * Synchronize
+     * Calculate parallel *s_m*
+     * Synchronize
+     * Calculate parallel *indx*
+     * Synchronize
+     * Calculate parallel *MCS*
+     * Synchronize
+     */
 
     s[0] = x[0];
     int r = x[0];
-    double start_time_for_s = omp_get_wtime();
+    double start_time_for_s = omp_get_wtime(); // Timers can be used calculations only for parallel regions.
+    /*
+     * prefix-sum:  see pg. between *37-39* in *06_Patterns.pdf* also see pg. *24* in *08_Reduce_Scan.pdf*
+     */
     #pragma omp parallel for reduction(inscan, +: r)
     for (int i = 1; i < n; i++) {
         r += x[i];
@@ -53,6 +69,9 @@ double solve_mcs(int *x, int n) {
     m[0] = s[0];
     int t = x[0];
     double start_time_for_m = omp_get_wtime();
+    /*
+     * prefix-min
+     */
     #pragma omp parallel for reduction(inscan, min: t)
     for (int i = 1; i < n; i++) {
         t = MIN(t, s[i]);
@@ -64,6 +83,9 @@ double solve_mcs(int *x, int n) {
 
     double start_time_for_sm = omp_get_wtime();
     #pragma omp for
+    /*
+     * If s[i] and m[i] were calculated, then s_m is calculated.
+     */
     for (int i = 1; i < n; i++) {
         s_m[i] = s[i] - m[i - 1];
     }
@@ -87,6 +109,7 @@ double solve_mcs(int *x, int n) {
     int MCS = INT_MIN;
     int end_index = 0;
     double start_time_for_mcs = omp_get_wtime();
+
     #pragma omp parallel
     {
         #pragma omp for reduction(max: MCS)
@@ -103,6 +126,7 @@ double solve_mcs(int *x, int n) {
             }
         }
     }
+
     double end_time_for_mcs = omp_get_wtime();
     double calculation_time_for_mcs = end_time_for_mcs - start_time_for_mcs;
 
@@ -132,7 +156,7 @@ int main() {
     printf("Testing with array size: %d\n\n", ARRAY_SIZE);
 
     double execution_time = solve_mcs(x, ARRAY_SIZE);
-    printf("Calculation time: %.4f seconds\n\n", execution_time);
+    printf("Calculation time: %.4f seconds\n\n", (execution_time/1000000));
 
     free(x);
 }

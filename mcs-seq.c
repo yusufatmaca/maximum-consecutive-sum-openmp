@@ -1,61 +1,30 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h> // For INT_MIN
+#include <limits.h> // For INT_MIN, to be used *MCS*
+#include <time.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define FILE_NAME "numbers.txt"
-#define INITIAL_CAPACITY 5000000
+#define ARRAY_SIZE 300000000
 
-void read_numbers_from_file(const char *filename, int **array, int *size) {
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
+void generate_random_array(int *array, int size) {
+
+    /*array[0] = -2;
+     *   array[1] = 1;
+     *   array[2] = 3;
+     *   array[3] = -7;
+     *   array[4] = 11;
+     *   array[5] = -2;
+     *   array[6] = -6;
+     *   array[7] = 12;
+     *   array[8] = -3;
+     *   array[9] = -1;*/
+
+    for (int i = 0; i < size; i++) {
+        array[i] = rand() % 201 - 100;  // Random numbers between -100 and 100
     }
-
-    int count = 0;
-    int capacity = INITIAL_CAPACITY; // Start with a capacity of 3,032,000
-    *array = malloc(capacity * sizeof(int));
-    if (!*array) {
-        perror("Memory allocation failed");
-        fclose(file);
-        exit(EXIT_FAILURE);
-    }
-
-    // Read numbers from the file
-    while (fscanf(file, "%d", &(*array)[count]) == 1) {
-        count++;
-
-        // Expand the array only if capacity is exceeded
-        if (count >= capacity) {
-            capacity = (int)(capacity * 1.5); // Increase capacity by 50%
-            *array = realloc(*array, capacity * sizeof(int));
-            if (!*array) {
-                perror("Memory reallocation failed");
-                fclose(file);
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
-
-    fclose(file);
-
-    if (count == 0) {
-        fprintf(stderr, "Error: No valid numbers found in the file.\n");
-        free(*array);
-        *array = NULL;
-        *size = 0;
-        exit(EXIT_FAILURE);
-    }
-
-    *size = count; // Update the size with the number of elements read
 }
 
-int main() {
-    int *x = NULL;
-    int n = 0;
-
-    read_numbers_from_file(FILE_NAME, &x, &n);
+double solve_mcs(int *x, int n) {
 
     int *s = malloc(n * sizeof(int));
     int *m = malloc(n * sizeof(int));
@@ -78,6 +47,7 @@ int main() {
     indx[0] = 0;        // The prefix minimum at position 0 occurs at index 0
 
     // Compute s[], m[], sm[], and indx[]
+    clock_t start_time_for_s_m_sm = clock();
     for (int i = 1; i < n; i++) {
         s[i] = s[i - 1] + x[i];        // Prefix-sum array
         m[i] = MIN(m[i - 1], s[i]);    // Prefix-minimum array
@@ -89,25 +59,48 @@ int main() {
             indx[i] = indx[i - 1];     // Carry forward the previous index
         }
     }
+    clock_t end_time_for_s_m_sm = clock();
+    double calculation_time_for_s_m_sm = (double)(end_time_for_s_m_sm - start_time_for_s_m_sm) / CLOCKS_PER_SEC;
 
     int MCS = INT_MIN;   // Maximum sm[j]
     int end_index = 0;   // End index of the subarray
+    clock_t start_time_for_mcs = clock();
     for (int j = 0; j < n; j++) {
         if (sm[j] > MCS) {
             MCS = sm[j];
             end_index = j;
         }
     }
+    clock_t end_time_for_mcs = clock();
+    double calculation_time_for_mcs = (double)(end_time_for_mcs - start_time_for_mcs) / CLOCKS_PER_SEC;
 
     int start_index = indx[end_index] + 1;
 
     printf("\nwhere the MCS value is max(sm[j]) = %d, the indices are [%d, %d].\n", MCS, start_index, end_index);
 
-    free(x);
     free(s);
     free(m);
     free(sm);
     free(indx);
+
+    return calculation_time_for_s_m_sm + calculation_time_for_mcs;
+}
+
+int main() {
+    int *x = malloc(ARRAY_SIZE * sizeof(int));
+    if (!x) {
+        perror("Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    generate_random_array(x, ARRAY_SIZE);
+
+    printf("Testing with array size: %d\n\n", ARRAY_SIZE);
+
+    double execution_time = solve_mcs(x, ARRAY_SIZE);
+    printf("Calculation time: %.4f seconds\n\n", (execution_time));
+
+    free(x);
 
     return 0;
 }
